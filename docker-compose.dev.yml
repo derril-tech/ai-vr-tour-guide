@@ -1,0 +1,145 @@
+version: '3.8'
+
+# Development override for docker-compose.yml
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+services:
+  # API Gateway
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile.dev
+    container_name: ai-vr-api-dev
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://postgres:password@postgres:5432/ai_vr_tour_guide
+      - REDIS_URL=redis://redis:6379
+      - NATS_URL=nats://nats:4222
+      - JWT_SECRET=dev-jwt-secret
+      - LOG_LEVEL=debug
+    volumes:
+      - ./apps/api:/app
+      - /app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    command: npm run dev
+
+  # Web Studio
+  studio:
+    build:
+      context: ./apps/studio
+      dockerfile: Dockerfile.dev
+    container_name: ai-vr-studio-dev
+    ports:
+      - "3002:3000"
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_API_URL=http://localhost:3000
+    volumes:
+      - ./apps/studio:/app
+      - /app/node_modules
+      - /app/.next
+    command: npm run dev
+
+  # WebXR Client
+  webxr:
+    build:
+      context: ./apps/webxr-client
+      dockerfile: Dockerfile.dev
+    container_name: ai-vr-webxr-dev
+    ports:
+      - "3003:5173"
+    environment:
+      - VITE_API_URL=http://localhost:3000
+    volumes:
+      - ./apps/webxr-client:/app
+      - /app/node_modules
+    command: npm run dev
+
+  # Python Workers
+  ingest-worker:
+    build:
+      context: ./apps/workers
+      dockerfile: Dockerfile.dev
+    container_name: ai-vr-ingest-worker-dev
+    ports:
+      - "8001:8000"
+    environment:
+      - PYTHONPATH=/app/src
+      - DATABASE_URL=postgresql+asyncpg://postgres:password@postgres:5432/ai_vr_tour_guide
+      - REDIS_URL=redis://redis:6379
+      - NATS_URL=nats://nats:4222
+      - WORKER_TYPE=ingest
+      - LOG_LEVEL=DEBUG
+    volumes:
+      - ./apps/workers:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    command: uvicorn src.workers.ingest.main:app --host 0.0.0.0 --port 8000 --reload
+
+  embed-worker:
+    build:
+      context: ./apps/workers
+      dockerfile: Dockerfile.dev
+    container_name: ai-vr-embed-worker-dev
+    ports:
+      - "8002:8000"
+    environment:
+      - PYTHONPATH=/app/src
+      - DATABASE_URL=postgresql+asyncpg://postgres:password@postgres:5432/ai_vr_tour_guide
+      - REDIS_URL=redis://redis:6379
+      - NATS_URL=nats://nats:4222
+      - WORKER_TYPE=embed
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-your-openai-key}
+    volumes:
+      - ./apps/workers:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    command: uvicorn src.workers.embed.main:app --host 0.0.0.0 --port 8000 --reload
+
+  rag-worker:
+    build:
+      context: ./apps/workers
+      dockerfile: Dockerfile.dev
+    container_name: ai-vr-rag-worker-dev
+    ports:
+      - "8003:8000"
+    environment:
+      - PYTHONPATH=/app/src
+      - DATABASE_URL=postgresql+asyncpg://postgres:password@postgres:5432/ai_vr_tour_guide
+      - REDIS_URL=redis://redis:6379
+      - NATS_URL=nats://nats:4222
+      - WORKER_TYPE=rag
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-your-openai-key}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-your-anthropic-key}
+    volumes:
+      - ./apps/workers:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    command: uvicorn src.workers.rag.main:app --host 0.0.0.0 --port 8000 --reload
+
+networks:
+  default:
+    name: ai-vr-network

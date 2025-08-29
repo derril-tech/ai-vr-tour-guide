@@ -1,0 +1,24 @@
+{
+  "name": "@ai-vr-tour-guide/shared-types",
+  "version": "1.0.0",
+  "description": "Shared TypeScript types and interfaces",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "lint": "eslint src/**/*.ts",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf dist"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.42.0",
+    "rimraf": "^5.0.0",
+    "typescript": "^5.1.3"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
